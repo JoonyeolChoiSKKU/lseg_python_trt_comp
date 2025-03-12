@@ -31,3 +31,5 @@ htmlcov/
 *.ckpt
 *.onnx
 *.trt
+
+outputs/

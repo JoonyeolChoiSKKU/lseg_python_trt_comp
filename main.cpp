@@ -6,6 +6,8 @@
 #include "cnpy.h"
 #include <vector>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 using namespace nvinfer1;
 
@@ -108,9 +110,20 @@ void process_and_save_feature(const std::string& enginePath, const std::string& 
     }
 
     std::vector<float> featureMap = run_trt_inference(img, engine, context, size, size);
+    
+    // ✅ 이미지 파일명만 추출
+    std::string image_name = img_path.substr(img_path.find_last_of("/") + 1); // 파일명만 추출
+    image_name = image_name.substr(0, image_name.find_last_of(".")); // 확장자 제거
 
+    // ✅ outputs 폴더 체크 후 생성
+    if (mkdir("outputs", 0777) && errno != EEXIST) {
+        std::cerr << "[ERROR] Failed to create output directory!" << std::endl;
+        return;
+    }
+
+    // ✅ 올바른 경로로 저장
     std::vector<size_t> shape = {1, 512, static_cast<size_t>(size/2), static_cast<size_t>(size/2)};
-    std::string output_path = "outputs/trt_feature_" + std::to_string(size) + "_" + img_path + ".npy";
+    std::string output_path = "outputs/trt_feature_" + std::to_string(size) + "_" + image_name + ".npy";
     cnpy::npy_save(output_path, featureMap.data(), shape);
 
     std::cout << "[INFO] Saved: " << output_path << std::endl;
