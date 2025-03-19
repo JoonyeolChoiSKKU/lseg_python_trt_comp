@@ -42,8 +42,11 @@ ICudaEngine* loadEngine(const std::string& enginePath, ILogger& logger) {
 }
 
 void preprocessImage(const cv::Mat& img, float* inputBuffer, int inputWidth, int inputHeight) {
+    cv::Mat rgb;
+    cv::cvtColor(img, rgb, cv::COLOR_BGR2RGB);  // BGR -> RGB 변환
+    
     cv::Mat resized, floatImg;
-    cv::resize(img, resized, cv::Size(inputWidth, inputHeight));
+    cv::resize(rgb, resized, cv::Size(inputWidth, inputHeight));
     resized.convertTo(floatImg, CV_32FC3, 1.0f / 255.0f);
 
     const float mean[3] = {0.5f, 0.5f, 0.5f};

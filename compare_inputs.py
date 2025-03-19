@@ -3,7 +3,9 @@ import numpy as np
 
 # 비교할 이미지 이름과 사이즈 리스트 (파일명에 맞게)
 images = ["cat", "cat2", "cat3"]
+#images = ["cat"]
 sizes = [256, 320, 384, 480]
+#sizes = [256]
 
 input_dir = "inputs"
 
@@ -32,7 +34,7 @@ for image in images:
         if pytorch_input.shape != trt_input.shape:
             print(f"[ERROR] {image} - {size}: Shape mismatch -> PyTorch: {pytorch_input.shape}, TRT: {trt_input.shape}")
             continue
-        
+
         # 값 차이 계산
         diff = np.abs(pytorch_input - trt_input)
         max_diff = diff.max()
@@ -43,3 +45,12 @@ for image in images:
         print(f"  동일 여부 (np.allclose): {is_close}")
         print(f"  최대 차이 (max): {max_diff}")
         print(f"  평균 차이 (mean): {mean_diff}\n")
+
+        print("첫 번째 행의 처음 6개 값 출력:")
+        for c in range(pytorch_input.shape[0]):
+            # 각 채널의 첫 번째 행의 처음 6개 값을 가져옴
+            pyt_values = pytorch_input[c, 0, :6]
+            trt_values = trt_input[c, 0, :6]
+            
+            print(f"Channel {c} PyT : {pyt_values}")
+            print(f"Channel {c} TRT : {trt_values}\n")
