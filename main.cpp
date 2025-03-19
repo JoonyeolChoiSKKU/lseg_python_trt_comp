@@ -46,8 +46,8 @@ void preprocessImage(const cv::Mat& img, float* inputBuffer, int inputWidth, int
     cv::resize(img, resized, cv::Size(inputWidth, inputHeight));
     resized.convertTo(floatImg, CV_32FC3, 1.0f / 255.0f);
 
-    const float mean[3] = {0.485f, 0.456f, 0.406f};
-    const float std[3]  = {0.229f, 0.224f, 0.225f};
+    const float mean[3] = {0.5f, 0.5f, 0.5f};
+    const float std[3]  = {0.5f, 0.5f, 0.5f};
 
     int index = 0;
     for (int c = 0; c < 3; c++) {
