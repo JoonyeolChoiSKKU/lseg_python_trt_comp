@@ -66,6 +66,12 @@ with torch.no_grad():
         # 이미지 로드
         input_tensor = load_image(image_path, size).cuda()
 
+        # --> 여기서 input tensor 저장 (numpy array로 변환)
+        input_np = input_tensor.cpu().numpy()
+        input_filename = f"pytorch_input_{os.path.basename(image_path).split('.')[0]}_{size}.npy"
+        np.save(os.path.join("inputs", input_filename), input_np)
+        print(f"[INFO] 크기 {size}의 input tensor 저장 완료 -> {os.path.join('inputs', input_filename)}")
+
         # 추론 실행
         output = model(input_tensor)
 

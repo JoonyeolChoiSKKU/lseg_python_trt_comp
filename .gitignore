@@ -33,3 +33,4 @@ htmlcov/
 *.trt
 
 outputs/
+inputs/

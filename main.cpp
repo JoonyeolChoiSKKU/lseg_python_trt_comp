@@ -60,7 +60,7 @@ void preprocessImage(const cv::Mat& img, float* inputBuffer, int inputWidth, int
     }
 }
 
-std::vector<float> run_trt_inference(cv::Mat& img, ICudaEngine* engine, IExecutionContext* context, int inputWidth, int inputHeight) {
+std::vector<float> run_trt_inference(cv::Mat& img, std::string imgName, ICudaEngine* engine, IExecutionContext* context, int inputWidth, int inputHeight) {
     std::string inputTensorName = engine->getIOTensorName(0);
     std::string outputTensorName = engine->getIOTensorName(1);
 
@@ -74,6 +74,14 @@ std::vector<float> run_trt_inference(cv::Mat& img, ICudaEngine* engine, IExecuti
 
     std::vector<float> inputData(3 * inputWidth * inputHeight);
     preprocessImage(img, inputData.data(), inputWidth, inputHeight);
+
+    // --> 여기서 preprocessed input 저장 (예: 3 x H x W 배열로 저장)
+    std::vector<size_t> inputShape = {3, static_cast<size_t>(inputHeight), static_cast<size_t>(inputWidth)};
+    std::string input_output_path = "inputs/trt_input_" + std::to_string(inputWidth) + "_" + imgName + ".npy";
+    cnpy::npy_save(input_output_path, inputData.data(), inputShape);
+    std::cout << "[INFO] Saved TRT input: " << input_output_path << std::endl;
+
+
     cudaMemcpy(d_input, inputData.data(), inputSize, cudaMemcpyHostToDevice);
 
     context->setTensorAddress(inputTensorName.c_str(), d_input);
@@ -109,12 +117,13 @@ void process_and_save_feature(const std::string& enginePath, const std::string& 
         return;
     }
 
-    std::vector<float> featureMap = run_trt_inference(img, engine, context, size, size);
-    
     // ✅ 이미지 파일명만 추출
     std::string image_name = img_path.substr(img_path.find_last_of("/") + 1); // 파일명만 추출
     image_name = image_name.substr(0, image_name.find_last_of(".")); // 확장자 제거
 
+
+    std::vector<float> featureMap = run_trt_inference(img,image_name, engine, context, size, size);
+    
     // ✅ outputs 폴더 체크 후 생성
     if (mkdir("outputs", 0777) && errno != EEXIST) {
         std::cerr << "[ERROR] Failed to create output directory!" << std::endl;
