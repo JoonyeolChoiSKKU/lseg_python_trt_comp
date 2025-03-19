@@ -1,11 +1,14 @@
 import torch
-from lseg.image_encoder import LSegImageEncoder
-from lseg.lseg_module import LSegModule
+from modules.lseg_module import LSegModule
 import os
 import numpy as np
 from torchvision import transforms
 from PIL import Image
 import argparse
+
+# ✅ 디바이스 설정 (GPU 사용 가능하면 GPU, 아니면 CPU)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
 # 입력 파라미터 설정
 parser = argparse.ArgumentParser()
@@ -23,17 +26,36 @@ def load_image(image_path, size):
     transform = transforms.Compose([
         transforms.Resize((size, size)),
         transforms.ToTensor(),
+        transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
     return transform(image).unsqueeze(0)
 
-# 모델 로드
-lseg_module = LSegModule.load_from_checkpoint(
-    checkpoint_path=CKPT_PATH,
-    backbone='clip_vitl16_384',
-    num_features=256
-)
-lseg_net = lseg_module.net if hasattr(lseg_module, 'net') else lseg_module
-image_encoder = LSegImageEncoder(lseg_net).eval().cuda()
+# ✅ 모델 로드
+checkpoint_path = "modules/demo_e200.ckpt"
+model = LSegModule.load_from_checkpoint(
+    checkpoint_path=checkpoint_path,
+    backbone="clip_vitl16_384",
+    aux=False,
+    num_features=256,
+    readout="project",
+    aux_weight=0,
+    se_loss=False,
+    se_weight=0,
+    ignore_index=255,
+    dropout=0.0,
+    scale_inv=False,
+    augment=False,
+    no_batchnorm=False,
+    widehead=True,
+    widehead_hr=False,
+    map_location=device,
+    arch_option=0,
+    block_depth=0,
+    activation="lrelu"
+).net.to(device)
+
+# ✅ 모델을 평가 모드로 설정
+model.eval()
 
 # 입력받은 이미지 경로 및 크기 리스트
 image_path = args.image
@@ -45,7 +67,7 @@ with torch.no_grad():
         input_tensor = load_image(image_path, size).cuda()
 
         # 추론 실행
-        output = image_encoder(input_tensor)
+        output = model(input_tensor)
 
         # numpy로 변환 후 CPU로 이동
         output_np = output.cpu().numpy()

@@ -65,7 +65,7 @@ std::vector<float> run_trt_inference(cv::Mat& img, ICudaEngine* engine, IExecuti
     std::string outputTensorName = engine->getIOTensorName(1);
 
     int inputSize = 3 * inputWidth * inputHeight * sizeof(float);
-    int outputSize = (inputWidth / 2) * (inputHeight / 2) * 512 * sizeof(float);
+    int outputSize = (inputWidth) * (inputHeight) * 512 * sizeof(float);
 
     void* d_input;
     void* d_output;
@@ -84,7 +84,7 @@ std::vector<float> run_trt_inference(cv::Mat& img, ICudaEngine* engine, IExecuti
     context->enqueueV3(stream);
     cudaStreamSynchronize(stream);
 
-    std::vector<float> outputData((inputWidth / 2) * (inputHeight / 2) * 512);
+    std::vector<float> outputData((inputWidth) * (inputHeight) * 512);
     cudaMemcpy(outputData.data(), d_output, outputSize, cudaMemcpyDeviceToHost);
 
     cudaFree(d_input);
@@ -122,7 +122,7 @@ void process_and_save_feature(const std::string& enginePath, const std::string& 
     }
 
     // ✅ 올바른 경로로 저장
-    std::vector<size_t> shape = {1, 512, static_cast<size_t>(size/2), static_cast<size_t>(size/2)};
+    std::vector<size_t> shape = {1, 512, static_cast<size_t>(size), static_cast<size_t>(size)};
     std::string output_path = "outputs/trt_feature_" + std::to_string(size) + "_" + image_name + ".npy";
     cnpy::npy_save(output_path, featureMap.data(), shape);
 
