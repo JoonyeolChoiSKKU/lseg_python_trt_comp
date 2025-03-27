@@ -47,56 +47,97 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # 비교할 파일 리스트
     sizes = args.sizes
+    tags = ["ade20k", "fss"]
     image_name = os.path.basename(args.image).split('.')[0]
-    results = []
 
-    for size in sizes:
-        pytorch_feature = np.load(f"outputs/pytorch_feature_{image_name}_{size}.npy")
-        trt_feature = np.load(f"outputs/trt_feature_{size}_{image_name}.npy")
+    for tag in tags:
+        print(f"\n▶ Feature Map Comparison for tag: `{tag}`")
+        results = []
 
-        cos_sim = cosine_similarity(pytorch_feature, trt_feature)
-        l2_dist = l2_distance(pytorch_feature, trt_feature)
-        results.append((size, cos_sim, l2_dist))
+        for size in sizes:
+            pytorch_path = f"outputs/pt_vit_{tag}_{size}_fMap_{image_name}.npy"
+            trt_path = f"outputs/trt_vit_{tag}_{size}_fMap_{image_name}.npy"
 
-    # 비교 결과 출력
-    print(f"\nFeature Map Comparison Results for {args.image}:")
-    print("Size | Cosine Similarity | L2 Distance")
-    print("---------------------------------------")
-    for size, cos_sim, l2_dist in results:
-        print(f"{size}  | {cos_sim:.6f}         | {l2_dist:.6f}")
+            if not os.path.exists(pytorch_path) or not os.path.exists(trt_path):
+                print(f"[경고] 파일 없음: {pytorch_path} 또는 {trt_path}")
+                continue
+            pytorch_feature = np.load(pytorch_path)
+            trt_feature = np.load(trt_path)
+
+            cos_sim = cosine_similarity(pytorch_feature, trt_feature)
+            l2_dist = l2_distance(pytorch_feature, trt_feature)
+            results.append((size, cos_sim, l2_dist))
+
+        # 비교 결과 출력
+        print(f"\nFeature Map Comparison Results for {args.image}:")
+        print("Size | Cosine Similarity | L2 Distance")
+        print("---------------------------------------")
+        for size, cos_sim, l2_dist in results:
+            print(f"{size}  | {cos_sim:.6f}         | {l2_dist:.6f}")
+
+    
+     # 🔁 Cross-Tag 비교: 각 size에 대해 ade20k vs fss 비교 (PyTorch & TRT 기준)
+    if len(tags) >= 2:
+        print("\n📊 Cross-Tag Feature Map Comparison (ade20k vs fss):")
+
+        for size in sizes:
+            cross_results = []
+
+            pt_ade_path = f"outputs/pt_vit_ade20k_{size}_fMap_{image_name}.npy"
+            pt_fss_path = f"outputs/pt_vit_fss_{size}_fMap_{image_name}.npy"
+            trt_ade_path = f"outputs/trt_vit_ade20k_{size}_fMap_{image_name}.npy"
+            trt_fss_path = f"outputs/trt_vit_fss_{size}_fMap_{image_name}.npy"
+
+            # 파일 존재 확인
+            if not all(map(os.path.exists, [pt_ade_path, pt_fss_path, trt_ade_path, trt_fss_path])):
+                print(f"[경고] {size}px 비교를 위한 파일 중 일부가 존재하지 않습니다.")
+                continue
+
+            # PyTorch Feature 비교
+            pt_ade_feat = np.load(pt_ade_path)
+            pt_fss_feat = np.load(pt_fss_path)
+            cos_sim_pt = cosine_similarity(pt_ade_feat, pt_fss_feat)
+            l2_dist_pt = l2_distance(pt_ade_feat, pt_fss_feat)
+
+            # TRT Feature 비교
+            trt_ade_feat = np.load(trt_ade_path)
+            trt_fss_feat = np.load(trt_fss_path)
+            cos_sim_trt = cosine_similarity(trt_ade_feat, trt_fss_feat)
+            l2_dist_trt = l2_distance(trt_ade_feat, trt_fss_feat)
+
+            print(f"\n▶ Size {size}")
+            print("Method   | Cosine Similarity | L2 Distance")
+            print("------------------------------------------")
+            print(f"PyTorch  | {cos_sim_pt:.6f}         | {l2_dist_pt:.6f}")
+            print(f"TRT      | {cos_sim_trt:.6f}         | {l2_dist_trt:.6f}")
 
 
-    # 시각화를 위한 subplot grid 준비 (2행 x 4열 = 총 8개의 subplot)
-    num_sizes = len(args.sizes)
-    fig, axes = plt.subplots(2, num_sizes, figsize=(num_sizes * 4, 2 * 4))
+    # ✅ 시각화 (각 태그마다 행, 사이즈마다 열)
+    fig, axes = plt.subplots(len(tags) * 2, len(sizes), figsize=(len(sizes) * 4, len(tags) * 2 * 4))
 
-    for col_idx, size in enumerate(args.sizes):
-        pytorch_feature_path = f"outputs/pytorch_feature_{image_name}_{size}.npy"
-        trt_feature_path = f"outputs/trt_feature_{size}_{image_name}.npy"
-        
-        if not os.path.exists(pytorch_feature_path) or not os.path.exists(trt_feature_path):
-            print(f"파일이 존재하지 않습니다: {pytorch_feature_path} 또는 {trt_feature_path}")
-            continue
+    for tag_idx, tag in enumerate(tags):
+        for col_idx, size in enumerate(sizes):
+            pytorch_path = f"outputs/pt_vit_{tag}_{size}_fMap_{image_name}.npy"
+            trt_path = f"outputs/trt_vit_{tag}_{size}_fMap_{image_name}.npy"
 
-        pytorch_feature = np.load(pytorch_feature_path)
-        trt_feature = np.load(trt_feature_path)
-        
-        # 첫 번째 샘플의 전체 채널 사용 (shape: (C, H, W))
-        original_feature_map = pytorch_feature[0]
-        trt_feature_map = trt_feature[0]
-        
-        original_map = reduce_feature_map(original_feature_map)
-        trt_map = reduce_feature_map(trt_feature_map)
-        
-        # 상단 subplot: 원본 Feature Map
-        axes[0, col_idx].imshow(original_map, cmap="viridis")
-        axes[0, col_idx].set_title(f"Original {size}")
-        axes[0, col_idx].axis("off")
-        
-        # 하단 subplot: TRT Feature Map
-        axes[1, col_idx].imshow(trt_map, cmap="viridis")
-        axes[1, col_idx].set_title(f"TRT {size}")
-        axes[1, col_idx].axis("off")
+            if not os.path.exists(pytorch_path) or not os.path.exists(trt_path):
+                continue
+
+            pytorch_feature = np.load(pytorch_path)[0]
+            trt_feature = np.load(trt_path)[0]
+
+            pytorch_map = reduce_feature_map(pytorch_feature)
+            trt_map = reduce_feature_map(trt_feature)
+
+            row_base = tag_idx * 2
+
+            axes[row_base, col_idx].imshow(pytorch_map, cmap="viridis")
+            axes[row_base, col_idx].set_title(f"[{tag}] PyTorch {size}")
+            axes[row_base, col_idx].axis("off")
+
+            axes[row_base + 1, col_idx].imshow(trt_map, cmap="viridis")
+            axes[row_base + 1, col_idx].set_title(f"[{tag}] TRT {size}")
+            axes[row_base + 1, col_idx].axis("off")
 
     plt.tight_layout()
     plt.show()

@@ -78,11 +78,11 @@ std::vector<float> run_trt_inference(cv::Mat& img, std::string imgName, ICudaEng
     std::vector<float> inputData(3 * inputWidth * inputHeight);
     preprocessImage(img, inputData.data(), inputWidth, inputHeight);
 
-    // --> 여기서 preprocessed input 저장 (예: 3 x H x W 배열로 저장)
-    std::vector<size_t> inputShape = {3, static_cast<size_t>(inputHeight), static_cast<size_t>(inputWidth)};
-    std::string input_output_path = "inputs/trt_input_" + std::to_string(inputWidth) + "_" + imgName + ".npy";
-    cnpy::npy_save(input_output_path, inputData.data(), inputShape);
-    std::cout << "[INFO] Saved TRT input: " << input_output_path << std::endl;
+    // // --> 여기서 preprocessed input 저장 (예: 3 x H x W 배열로 저장)
+    // std::vector<size_t> inputShape = {3, static_cast<size_t>(inputHeight), static_cast<size_t>(inputWidth)};
+    // std::string input_output_path = "inputs/trt_input_" + std::to_string(inputWidth) + "_" + imgName + ".npy";
+    // cnpy::npy_save(input_output_path, inputData.data(), inputShape);
+    // std::cout << "[INFO] Saved TRT input: " << input_output_path << std::endl;
 
 
     cudaMemcpy(d_input, inputData.data(), inputSize, cudaMemcpyHostToDevice);
@@ -105,7 +105,8 @@ std::vector<float> run_trt_inference(cv::Mat& img, std::string imgName, ICudaEng
     return outputData;
 }
 
-void process_and_save_feature(const std::string& enginePath, const std::string& img_path, int size) {
+void process_and_save_feature(const std::string& enginePath, const std::string& img_path, 
+                              int size, const std::string& tag) {
     Logger logger;
     ICudaEngine* engine = loadEngine(enginePath, logger);
     if (!engine) {
@@ -135,7 +136,7 @@ void process_and_save_feature(const std::string& enginePath, const std::string& 
 
     // ✅ 올바른 경로로 저장
     std::vector<size_t> shape = {1, 512, static_cast<size_t>(size), static_cast<size_t>(size)};
-    std::string output_path = "outputs/trt_feature_" + std::to_string(size) + "_" + image_name + ".npy";
+    std::string output_path = "outputs/trt_vit_" + tag + "_" + std::to_string(size) + "_fMap_" + image_name + ".npy";
     cnpy::npy_save(output_path, featureMap.data(), shape);
 
     std::cout << "[INFO] Saved: " << output_path << std::endl;
@@ -146,19 +147,30 @@ void process_and_save_feature(const std::string& enginePath, const std::string& 
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <image_file> <sizes>" << std::endl;
+        std::cerr << "Usage: " << argv[0] 
+                  << " <engine.trt> <image_file> <sizes>" << std::endl;
         return -1;
     }
+    std::string enginePath = argv[1];
+    std::string image_path = argv[2];
 
-    std::string image_path = argv[1];
+    // ✅ tag 추출
+    std::string engineFile = enginePath.substr(enginePath.find_last_of("/") + 1);
+    std::string tag = "custom";
+    if (engineFile.find("ade20k") != std::string::npos)
+        tag = "ade20k";
+    else if (engineFile.find("fss") != std::string::npos)
+        tag = "fss";
+
+
     std::vector<int> sizes;
-    for (int i = 2; i < argc; ++i) {
+    for (int i = 3; i < argc; ++i) {
         sizes.push_back(std::stoi(argv[i]));
     }
 
     for (int size : sizes) {
-        std::string enginePath = "models/lseg_image_encoder_" + std::to_string(size) + ".trt";
-        process_and_save_feature(enginePath, image_path, size);
+        // std::string enginePath = "models/lseg_image_encoder_" + std::to_string(size) + ".trt";
+        process_and_save_feature(enginePath, image_path, size, tag);
     }
     return 0;
 }

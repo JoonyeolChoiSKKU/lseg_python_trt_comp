@@ -17,7 +17,7 @@ class LSegModule:
             labels=labels,
             backbone=kwargs["backbone"],
             features=kwargs["num_features"],
-            crop_size=384,
+            crop_size=crop_size,
             arch_option=kwargs["arch_option"],
             block_depth=kwargs["block_depth"],
             activation=kwargs["activation"],
